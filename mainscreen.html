@@ -336,6 +336,197 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Voice Mail Modal */
+        .voicemail-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .voicemail-modal.show {
+            display: flex;
+        }
+
+        .voicemail-content {
+            background: var(--background-color);
+            border-radius: 24px;
+            padding: 28px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .voicemail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .voicemail-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .voicemail-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .voicemail-close i {
+            font-size: 24px;
+        }
+
+        .voicemail-to {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .voicemail-to strong {
+            color: var(--secondary-purple);
+            font-weight: 600;
+        }
+
+        .recording-visualizer {
+            background: var(--input-bg);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .recording-timer {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .recording-status {
+            font-size: 14px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recording-dot {
+            width: 8px;
+            height: 8px;
+            background: #ff3b30;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .waveform-container {
+            width: 100%;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .waveform-bar {
+            width: 4px;
+            background: var(--secondary-purple);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        .voicemail-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .voicemail-button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .voicemail-button:active {
+            transform: scale(0.96);
+        }
+
+        .voicemail-button.primary {
+            background: var(--secondary-purple);
+            color: white;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .voicemail-button.secondary {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .voicemail-button.danger {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .voicemail-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .voicemail-button i {
+            font-size: 20px;
+        }
+
+        .audio-player {
+            background: var(--input-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .audio-player.show {
+            display: block;
+        }
+
+        .audio-player audio {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -348,6 +539,9 @@
                     <div class="action-buttons">
                         <button class="action-button message">
                             <i class="material-icons">chat</i>
+                        </button>
+                        <button class="action-button voicemail">
+                            <i class="material-icons">voicemail</i>
                         </button>
                         <button class="action-button call">
                             <i class="material-icons">call</i>
@@ -371,6 +565,53 @@
         </div>
         <button class="cancel-call" id="cancelCall">Cancel</button>
     </div>
+
+    <!-- Voice Mail Modal -->
+    <div class="voicemail-modal" id="voicemailModal">
+        <div class="voicemail-content">
+            <div class="voicemail-header">
+                <h2 class="voicemail-title">Voice Message</h2>
+                <button class="voicemail-close" id="voicemailClose">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            
+            <div class="voicemail-to">
+                Sending to: <strong id="voicemailRecipient"></strong>
+            </div>
+
+            <div class="recording-visualizer">
+                <div class="recording-timer" id="recordingTimer">00:00</div>
+                <div class="recording-status" id="recordingStatus">
+                    <span>Ready to record</span>
+                </div>
+                <div class="waveform-container" id="waveformContainer">
+                    <!-- Waveform bars will be generated here -->
+                </div>
+            </div>
+
+            <div class="audio-player" id="audioPlayer">
+                <audio controls id="audioPlayback"></audio>
+            </div>
+
+            <div class="voicemail-controls">
+                <button class="voicemail-button secondary" id="recordButton">
+                    <i class="material-icons">mic</i>
+                    <span>Start</span>
+                </button>
+                <button class="voicemail-button danger" id="stopButton" disabled>
+                    <i class="material-icons">stop</i>
+                    <span>Stop</span>
+                </button>
+            </div>
+
+            <button class="voicemail-button primary" id="sendVoicemailButton" style="display: none;">
+                <i class="material-icons">email</i>
+                <span>Send Email</span>
+            </button>
+        </div>
+    </div>
+
     <script>
         const controller = window.top.controller;
         const input = document.querySelector("#numberInput");
@@ -529,6 +770,214 @@
             controller.downloadFile(fileId, cid, messageId);
             // Implement file download functionality here
         }
+
+        // ==================== VOICE MAIL FUNCTIONALITY ====================
+        
+        const voicemailButton = document.querySelector(".voicemail");
+        const voicemailModal = document.getElementById("voicemailModal");
+        const voicemailClose = document.getElementById("voicemailClose");
+        const voicemailRecipient = document.getElementById("voicemailRecipient");
+        const recordButton = document.getElementById("recordButton");
+        const stopButton = document.getElementById("stopButton");
+        const sendVoicemailButton = document.getElementById("sendVoicemailButton");
+        const recordingTimer = document.getElementById("recordingTimer");
+        const recordingStatus = document.getElementById("recordingStatus");
+        const waveformContainer = document.getElementById("waveformContainer");
+        const audioPlayer = document.getElementById("audioPlayer");
+        const audioPlayback = document.getElementById("audioPlayback");
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let timerInterval;
+        let audioBlob;
+        let waveformBars = [];
+
+        // Initialize waveform bars
+        function initWaveform() {
+            waveformContainer.innerHTML = '';
+            waveformBars = [];
+            for (let i = 0; i < 20; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'waveform-bar';
+                bar.style.height = '4px';
+                waveformContainer.appendChild(bar);
+                waveformBars.push(bar);
+            }
+        }
+
+        // Animate waveform during recording
+        function animateWaveform() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                waveformBars.forEach(bar => {
+                    const height = Math.random() * 50 + 10;
+                    bar.style.height = height + 'px';
+                });
+                requestAnimationFrame(animateWaveform);
+            }
+        }
+
+        // Reset waveform
+        function resetWaveform() {
+            waveformBars.forEach(bar => {
+                bar.style.height = '4px';
+            });
+        }
+
+        // Open voice mail modal
+        voicemailButton.addEventListener("click", function() {
+            if (input.value === "") {
+                alert("Please enter an email address first");
+                return;
+            }
+            voicemailRecipient.textContent = input.value;
+            voicemailModal.classList.add('show');
+            initWaveform();
+            resetRecording();
+        });
+
+        // Close voice mail modal
+        voicemailClose.addEventListener("click", closeVoicemailModal);
+        voicemailModal.addEventListener("click", function(e) {
+            if (e.target === voicemailModal) {
+                closeVoicemailModal();
+            }
+        });
+
+        function closeVoicemailModal() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            }
+            voicemailModal.classList.remove('show');
+        }
+
+        // Reset recording state
+        function resetRecording() {
+            audioChunks = [];
+            audioBlob = null;
+            recordingTimer.textContent = '00:00';
+            recordingStatus.innerHTML = '<span>Ready to record</span>';
+            recordButton.disabled = false;
+            stopButton.disabled = true;
+            sendVoicemailButton.style.display = 'none';
+            audioPlayer.classList.remove('show');
+            resetWaveform();
+        }
+
+        // Start recording
+        recordButton.addEventListener("click", async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioPlayback.src = audioUrl;
+                    audioPlayer.classList.add('show');
+                    sendVoicemailButton.style.display = 'block';
+                    
+                    // Stop all tracks
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                recordingStartTime = Date.now();
+                
+                // Update UI
+                recordButton.disabled = true;
+                stopButton.disabled = false;
+                recordingStatus.innerHTML = '<div class="recording-dot"></div><span>Recording...</span>';
+                
+                // Start timer
+                timerInterval = setInterval(updateTimer, 100);
+                
+                // Animate waveform
+                animateWaveform();
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('Could not access microphone. Please check permissions.');
+            }
+        });
+
+        // Stop recording
+        stopButton.addEventListener("click", stopRecording);
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearInterval(timerInterval);
+                recordButton.disabled = false;
+                stopButton.disabled = true;
+                recordingStatus.innerHTML = '<span>Recording complete</span>';
+                resetWaveform();
+            }
+        }
+
+        // Update timer
+        function updateTimer() {
+            const elapsed = Date.now() - recordingStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            
+            const formattedTime = 
+                String(minutes).padStart(2, '0') + ':' + 
+                String(remainingSeconds).padStart(2, '0');
+            
+            recordingTimer.textContent = formattedTime;
+        }
+
+        // Send voicemail via email
+        sendVoicemailButton.addEventListener("click", async function() {
+            if (!audioBlob) {
+                alert('No recording available');
+                return;
+            }
+
+            const recipientEmail = input.value;
+            
+            // Convert blob to base64 for download
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const base64Audio = reader.result;
+                
+                // Create download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = base64Audio;
+                downloadLink.download = `voicemail_${Date.now()}.webm`;
+                
+                // Trigger download
+                downloadLink.click();
+                
+                // Prepare email
+                const subject = encodeURIComponent('Voice message from PhoneMyEmail');
+                const body = encodeURIComponent(
+                    `Hi,\n\n` +
+                    `I tried to contact you with PhoneMyEmail, but you don't have a user yet.\n\n` +
+                    `I've recorded a voice message for you. Please find the audio file that was just downloaded to your device and attach it to this email before sending.\n\n` +
+                    `If you want to phone me back, feel free to phone my email!\n\n` +
+                    `Best regards`
+                );
+                
+                // Open mailto link
+                const mailtoLink = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+                window.location.href = mailtoLink;
+                
+                // Close modal after a short delay
+                setTimeout(() => {
+                    closeVoicemailModal();
+                    alert('Voice message downloaded! Please attach it to the email that just opened.');
+                }, 500);
+            };
+            
+            reader.readAsDataURL(audioBlob);
+        });
     </script>
 </body>
 </html>
