@@ -969,7 +969,9 @@
                 return;
             }
 
-            const recipientEmail = input.value;
+            // Get recipient email from the input field
+            const input = document.querySelector("#numberInput");
+            const recipientEmail = input ? input.value : '';
             
             // Convert blob to base64 for download
             const reader = new FileReader();
