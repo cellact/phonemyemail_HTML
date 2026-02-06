@@ -41,7 +41,9 @@
         }
 
         function getUrlParameter(name) {
-            const urlParams = new URLSearchParams(window.location.search);
+            // Read from hash fragment (after #) instead of query string (after ?)
+            const hash = window.location.hash.substring(1); // Remove the '#'
+            const urlParams = new URLSearchParams(hash);
             return urlParams.get(name);
         }
 
