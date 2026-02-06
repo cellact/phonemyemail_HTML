@@ -337,58 +337,65 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Voice Mail Modal */
-        .voicemail-modal {
+        /* Voice Mail Full Screen */
+        .voicemail-screen {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: var(--background-color);
             z-index: 2000;
             display: none;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
             padding: 20px;
         }
 
-        .voicemail-modal.show {
+        .voicemail-screen.show {
             display: flex;
         }
 
         .voicemail-content {
-            background: var(--background-color);
-            border-radius: 24px;
-            padding: 28px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 500px;
+            margin: 0 auto;
             width: 100%;
-            max-width: 400px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
         .voicemail-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 0.5px solid var(--separator-color);
         }
 
         .voicemail-title {
-            font-size: 22px;
-            font-weight: 600;
+            font-size: 28px;
+            font-weight: 700;
             color: var(--text-primary);
         }
 
         .voicemail-close {
-            background: none;
+            background: var(--input-bg);
             border: none;
-            color: var(--text-secondary);
+            color: var(--text-primary);
             cursor: pointer;
-            padding: 4px;
+            padding: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+        }
+
+        .voicemail-close:active {
+            transform: scale(0.92);
+            background: var(--purple-10);
         }
 
         .voicemail-close i {
@@ -396,31 +403,37 @@
         }
 
         .voicemail-to {
-            font-size: 15px;
+            font-size: 16px;
             color: var(--text-secondary);
-            margin-bottom: 20px;
+            margin-bottom: 32px;
+            text-align: center;
             word-break: break-all;
         }
 
         .voicemail-to strong {
             color: var(--secondary-purple);
             font-weight: 600;
+            display: block;
+            font-size: 18px;
+            margin-top: 4px;
         }
 
         .recording-visualizer {
             background: var(--input-bg);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
+            border-radius: 20px;
+            padding: 40px 24px;
+            margin-bottom: 24px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
+            flex: 1;
+            justify-content: center;
         }
 
         .recording-timer {
-            font-size: 32px;
-            font-weight: 600;
+            font-size: 48px;
+            font-weight: 700;
             color: var(--text-primary);
             font-variant-numeric: tabular-nums;
         }
@@ -464,8 +477,14 @@
 
         .voicemail-controls {
             display: flex;
+            flex-direction: column;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+
+        .voicemail-controls-row {
+            display: flex;
+            gap: 12px;
         }
 
         .voicemail-button {
@@ -540,11 +559,11 @@
                         <button class="action-button message">
                             <i class="material-icons">chat</i>
                         </button>
-                        <button class="action-button voicemail">
-                            <i class="material-icons">voicemail</i>
-                        </button>
                         <button class="action-button call">
                             <i class="material-icons">call</i>
+                        </button>
+                        <button class="action-button voicemail">
+                            <i class="material-icons">voicemail</i>
                         </button>
                     </div>
                 </div>
@@ -566,8 +585,8 @@
         <button class="cancel-call" id="cancelCall">Cancel</button>
     </div>
 
-    <!-- Voice Mail Modal -->
-    <div class="voicemail-modal" id="voicemailModal">
+    <!-- Voice Mail Full Screen -->
+    <div class="voicemail-screen" id="voicemailScreen">
         <div class="voicemail-content">
             <div class="voicemail-header">
                 <h2 class="voicemail-title">Voice Message</h2>
@@ -595,20 +614,27 @@
             </div>
 
             <div class="voicemail-controls">
-                <button class="voicemail-button secondary" id="recordButton">
-                    <i class="material-icons">mic</i>
-                    <span>Start</span>
+                <div class="voicemail-controls-row">
+                    <button class="voicemail-button secondary" id="recordButton">
+                        <i class="material-icons">mic</i>
+                        <span>Start Recording</span>
+                    </button>
+                    <button class="voicemail-button danger" id="stopButton" disabled>
+                        <i class="material-icons">stop</i>
+                        <span>Stop</span>
+                    </button>
+                </div>
+                
+                <button class="voicemail-button secondary" id="recordAgainButton" style="display: none;">
+                    <i class="material-icons">refresh</i>
+                    <span>Record Again</span>
                 </button>
-                <button class="voicemail-button danger" id="stopButton" disabled>
-                    <i class="material-icons">stop</i>
-                    <span>Stop</span>
+
+                <button class="voicemail-button primary" id="sendVoicemailButton" style="display: none;">
+                    <i class="material-icons">email</i>
+                    <span>Send Email</span>
                 </button>
             </div>
-
-            <button class="voicemail-button primary" id="sendVoicemailButton" style="display: none;">
-                <i class="material-icons">email</i>
-                <span>Send Email</span>
-            </button>
         </div>
     </div>
 
@@ -774,11 +800,12 @@
         // ==================== VOICE MAIL FUNCTIONALITY ====================
         
         const voicemailButton = document.querySelector(".voicemail");
-        const voicemailModal = document.getElementById("voicemailModal");
+        const voicemailScreen = document.getElementById("voicemailScreen");
         const voicemailClose = document.getElementById("voicemailClose");
         const voicemailRecipient = document.getElementById("voicemailRecipient");
         const recordButton = document.getElementById("recordButton");
         const stopButton = document.getElementById("stopButton");
+        const recordAgainButton = document.getElementById("recordAgainButton");
         const sendVoicemailButton = document.getElementById("sendVoicemailButton");
         const recordingTimer = document.getElementById("recordingTimer");
         const recordingStatus = document.getElementById("recordingStatus");
@@ -824,31 +851,26 @@
             });
         }
 
-        // Open voice mail modal
+        // Open voice mail screen
         voicemailButton.addEventListener("click", function() {
             if (input.value === "") {
                 alert("Please enter an email address first");
                 return;
             }
             voicemailRecipient.textContent = input.value;
-            voicemailModal.classList.add('show');
+            voicemailScreen.classList.add('show');
             initWaveform();
             resetRecording();
         });
 
-        // Close voice mail modal
-        voicemailClose.addEventListener("click", closeVoicemailModal);
-        voicemailModal.addEventListener("click", function(e) {
-            if (e.target === voicemailModal) {
-                closeVoicemailModal();
-            }
-        });
+        // Close voice mail screen
+        voicemailClose.addEventListener("click", closeVoicemailScreen);
 
-        function closeVoicemailModal() {
+        function closeVoicemailScreen() {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 stopRecording();
             }
-            voicemailModal.classList.remove('show');
+            voicemailScreen.classList.remove('show');
         }
 
         // Reset recording state
@@ -857,12 +879,19 @@
             audioBlob = null;
             recordingTimer.textContent = '00:00';
             recordingStatus.innerHTML = '<span>Ready to record</span>';
+            recordButton.style.display = 'block';
             recordButton.disabled = false;
             stopButton.disabled = true;
+            recordAgainButton.style.display = 'none';
             sendVoicemailButton.style.display = 'none';
             audioPlayer.classList.remove('show');
             resetWaveform();
         }
+
+        // Record again button
+        recordAgainButton.addEventListener("click", function() {
+            resetRecording();
+        });
 
         // Start recording
         recordButton.addEventListener("click", async function() {
@@ -879,6 +908,7 @@
                     const audioUrl = URL.createObjectURL(audioBlob);
                     audioPlayback.src = audioUrl;
                     audioPlayer.classList.add('show');
+                    recordAgainButton.style.display = 'block';
                     sendVoicemailButton.style.display = 'block';
                     
                     // Stop all tracks
@@ -889,7 +919,7 @@
                 recordingStartTime = Date.now();
                 
                 // Update UI
-                recordButton.disabled = true;
+                recordButton.style.display = 'none';
                 stopButton.disabled = false;
                 recordingStatus.innerHTML = '<div class="recording-dot"></div><span>Recording...</span>';
                 
@@ -912,9 +942,8 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 clearInterval(timerInterval);
-                recordButton.disabled = false;
                 stopButton.disabled = true;
-                recordingStatus.innerHTML = '<span>Recording complete</span>';
+                recordingStatus.innerHTML = '<span>Recording complete - Preview below</span>';
                 resetWaveform();
             }
         }
@@ -969,9 +998,9 @@
                 const mailtoLink = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
                 window.location.href = mailtoLink;
                 
-                // Close modal after a short delay
+                // Close screen after a short delay
                 setTimeout(() => {
-                    closeVoicemailModal();
+                    closeVoicemailScreen();
                     alert('Voice message downloaded! Please attach it to the email that just opened.');
                 }, 500);
             };
