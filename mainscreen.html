@@ -962,7 +962,53 @@
             recordingTimer.textContent = formattedTime;
         }
 
-        // Send voicemail via email using Web Share API (works in WebView, no native changes needed)
+        // Helper: convert blob to base64 string
+        function blobToBase64(blob) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onloadend = function() {
+                    // Strip the data:...;base64, prefix
+                    var base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Helper: build a .eml (RFC 822) file with To, Subject, Body + audio attachment
+        function buildEmlFile(to, subject, bodyText, audioBase64, audioFilename, audioMimeType) {
+            var boundary = 'boundary_' + Date.now();
+            var eml = '';
+            eml += 'To: ' + to + '\r\n';
+            eml += 'Subject: ' + subject + '\r\n';
+            eml += 'MIME-Version: 1.0\r\n';
+            eml += 'Content-Type: multipart/mixed; boundary="' + boundary + '"\r\n';
+            eml += '\r\n';
+            // Body part
+            eml += '--' + boundary + '\r\n';
+            eml += 'Content-Type: text/plain; charset=UTF-8\r\n';
+            eml += 'Content-Transfer-Encoding: 7bit\r\n';
+            eml += '\r\n';
+            eml += bodyText + '\r\n';
+            eml += '\r\n';
+            // Attachment part
+            eml += '--' + boundary + '\r\n';
+            eml += 'Content-Type: ' + audioMimeType + '; name="' + audioFilename + '"\r\n';
+            eml += 'Content-Transfer-Encoding: base64\r\n';
+            eml += 'Content-Disposition: attachment; filename="' + audioFilename + '"\r\n';
+            eml += '\r\n';
+            // Split base64 into 76-char lines per MIME spec
+            for (var i = 0; i < audioBase64.length; i += 76) {
+                eml += audioBase64.substring(i, i + 76) + '\r\n';
+            }
+            eml += '\r\n';
+            eml += '--' + boundary + '--\r\n';
+            return eml;
+        }
+
+        // Send voicemail: generates a .eml file with To + Subject + Body + audio attachment
+        // When user opens the .eml file, Gmail/email client loads it as a ready-to-send email
         sendVoicemailButton.addEventListener("click", async function() {
             if (!audioBlob) {
                 alert('No recording available');
@@ -970,77 +1016,58 @@
             }
 
             // Get recipient email from the input field
-            const input = document.querySelector("#numberInput");
-            const recipientEmail = input ? input.value : '';
+            var input = document.querySelector("#numberInput");
+            var recipientEmail = input ? input.value : '';
 
-            const subject = 'Voice message from PhoneMyEmail';
-            const body = 
-                'Hi,\n\n' +
-                'I tried to contact you with PhoneMyEmail, but you don\'t have a user yet.\n\n' +
-                'I\'ve recorded a voice message for you - it\'s attached to this email.\n\n' +
-                'If you want to phone me back, feel free to phone my email!\n\n' +
+            if (!recipientEmail) {
+                alert('Please enter a recipient email address first');
+                closeVoicemailScreen();
+                return;
+            }
+
+            var subject = 'Voice message from PhoneMyEmail';
+            var bodyText = 
+                'Hi,\r\n\r\n' +
+                'I tried to contact you with PhoneMyEmail, but you don\'t have a user yet.\r\n\r\n' +
+                'I\'ve recorded a voice message for you - it\'s attached.\r\n\r\n' +
+                'If you want to phone me back, feel free to phone my email!\r\n\r\n' +
                 'Best regards';
 
-            // Create a proper File from the audio blob for sharing
-            const audioFile = new File(
-                [audioBlob], 
-                'voicemail_' + Date.now() + '.webm', 
-                { type: audioBlob.type || 'audio/webm' }
-            );
-
-            // Try Web Share API with file (attaches audio directly)
-            if (navigator.canShare && navigator.canShare({ files: [audioFile] })) {
-                try {
-                    await navigator.share({
-                        title: subject,
-                        text: body,
-                        files: [audioFile]
-                    });
-                    // User shared successfully
-                    closeVoicemailScreen();
-                    return;
-                } catch (err) {
-                    // User cancelled or share failed - fall through to fallback
-                    if (err.name === 'AbortError') {
-                        // User just cancelled, do nothing
-                        return;
-                    }
-                    console.log('Share with file failed, trying without file:', err);
-                }
-            }
-
-            // Fallback: Web Share API without file attachment
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: subject,
-                        text: body + '\n\n(Voice message could not be attached - please request it again)'
-                    });
-                    closeVoicemailScreen();
-                    return;
-                } catch (err) {
-                    if (err.name === 'AbortError') return;
-                    console.log('Share without file also failed:', err);
-                }
-            }
-
-            // Last resort fallback: download file + open mailto link
             try {
-                // Download the audio file
-                const url = URL.createObjectURL(audioBlob);
-                const a = document.createElement('a');
+                // Show a loading indicator
+                sendVoicemailButton.textContent = 'Preparing email...';
+                sendVoicemailButton.disabled = true;
+
+                // Convert audio blob to base64
+                var audioBase64 = await blobToBase64(audioBlob);
+                var mimeType = audioBlob.type || 'audio/webm';
+                var filename = 'voicemail.webm';
+
+                // Build the .eml file with everything pre-filled
+                var emlContent = buildEmlFile(recipientEmail, subject, bodyText, audioBase64, filename, mimeType);
+
+                // Trigger download of the .eml file
+                var emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+                var url = URL.createObjectURL(emlBlob);
+                var a = document.createElement('a');
                 a.href = url;
-                a.download = 'voicemail_' + Date.now() + '.webm';
+                a.download = 'voicemail_to_' + recipientEmail.replace('@', '_at_') + '.eml';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
-                alert('Voice message downloaded! Please open your email app and attach the downloaded file to a new email to ' + recipientEmail);
+                // Reset button
+                sendVoicemailButton.textContent = '📧 Send Voicemail';
+                sendVoicemailButton.disabled = false;
+
+                alert('Email file downloaded! Tap it to open in Gmail - the recipient and voice message are already filled in.');
                 closeVoicemailScreen();
             } catch (e) {
-                console.error('Fallback download failed:', e);
-                alert('Could not share the voice message. Please try again.');
+                console.error('EML generation failed:', e);
+                sendVoicemailButton.textContent = '📧 Send Voicemail';
+                sendVoicemailButton.disabled = false;
+                alert('Could not prepare the email. Please try again.');
             }
         });
     </script>
