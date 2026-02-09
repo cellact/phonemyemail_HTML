@@ -969,9 +969,14 @@
                 return;
             }
 
+            // Get recipient email from the input field
+            var input = document.querySelector("#numberInput");
+            var recipientEmail = input ? input.value : '';
+
             var subject = 'Voice message from PhoneMyEmail';
             var emailBody = 
-                'Hi,\n\n' +
+                'Send to: ' + recipientEmail + '\n\n' +
+                'Hi ' + recipientEmail + ',\n\n' +
                 'I tried to contact you with PhoneMyEmail, but you don\'t have a user yet.\n\n' +
                 'I\'ve recorded a voice message for you - it\'s attached.\n\n' +
                 'If you want to phone me back, feel free to phone my email!\n\n' +
