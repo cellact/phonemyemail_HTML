@@ -776,20 +776,31 @@
                 input.value = value;
             }
         }
+        function resolveDialTarget(value) {
+            // If it's purely digits (with optional leading * or +), treat it as a number
+            // and route through phonemyemail.global
+            if (/^[*+]?\d+$/.test(value)) {
+                return value + '.phonemyemail.global';
+            }
+            // Otherwise pass through as-is (ENS names, emails, businesses, etc.)
+            return value;
+        }
+
         function makeCall(remoteId, contact) {
+            var dialTarget = resolveDialTarget(remoteId);
+            console.log("makeCall: input=" + remoteId + " resolved=" + dialTarget);
+
             const callingId = document.getElementById('callingId');
             console.log("contact: "+contact);
             callingId.textContent = contact && contact !== '' ? contact : remoteId;
             overlay.classList.add('show');
             
-            // The cancel button will be handled by the controller
             document.getElementById('cancelCall').addEventListener('click', () => {
-                controller.rejectCall(remoteId);
+                controller.rejectCall(dialTarget);
                 overlay.classList.remove('show');
-                // Controller cancel call functionality will be added here
-            }, { once: true });  // Remove listener after first click
+            }, { once: true });
             
-            controller.call(remoteId);
+            controller.call(dialTarget);
         }
         function downloadFile(fileId, cid, messageId) {
             console.log("downloading file: "+fileId);
@@ -962,7 +973,20 @@
             recordingTimer.textContent = formattedTime;
         }
 
-        // Send voicemail via Web Share API (auto-attaches audio file)
+        function blobToBase64(blob) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.onloadend = function() {
+                    var result = reader.result || '';
+                    var base64 = String(result).split(',')[1] || '';
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Send voicemail through native bridge first, then fall back to share/download
         sendVoicemailButton.addEventListener("click", async function() {
             if (!audioBlob) {
                 alert('No recording available');
@@ -972,6 +996,10 @@
             // Get recipient email from the input field
             var input = document.querySelector("#numberInput");
             var recipientEmail = input ? input.value : '';
+            if (!recipientEmail) {
+                alert('Please enter a recipient email address first');
+                return;
+            }
 
             var subject = 'Voice message from PhoneMyEmail';
             var emailBody = 
@@ -988,6 +1016,26 @@
                 'voicemail.webm', 
                 { type: audioBlob.type || 'audio/webm' }
             );
+
+            // Preferred path: let native client open the email composer
+            try {
+                var fileDataBase64 = await blobToBase64(audioBlob);
+                controller.sendMessageToNativeApp({
+                    action: "send-email-with-attachment",
+                    body: {
+                        to: recipientEmail,
+                        subject: subject,
+                        content: emailBody,
+                        fileName: audioFile.name,
+                        mimeType: audioFile.type || 'audio/webm',
+                        fileDataBase64: fileDataBase64
+                    }
+                });
+                closeVoicemailScreen();
+                return;
+            } catch (err) {
+                console.log('Native email bridge failed, falling back:', err);
+            }
 
             // Use Web Share API - auto-attaches the audio file
             if (navigator.canShare && navigator.canShare({ files: [audioFile] })) {
