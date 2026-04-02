@@ -30,7 +30,7 @@
 
         guiFrame = document.getElementById('guiFrame');
         pid = getUrlParameter('pid');
-        screen = getUrlParameter('screen');
+        screen = getUrlParameter('screen') || 'MAIN';
         localId = getUrlParameter('localId');
         remoteId = getUrlParameter('remoteId');
 
@@ -41,10 +41,18 @@
         }
 
         function getUrlParameter(name) {
-            // Read from hash fragment (after #) instead of query string (after ?)
-            const hash = window.location.hash.substring(1); // Remove the '#'
-            const urlParams = new URLSearchParams(hash);
-            return urlParams.get(name);
+            // Support both native URL styles:
+            // 1. hash fragments: index.html#screen=MAIN&localId=...
+            // 2. query params:   index.html?screen=MAIN&localId=...
+            const queryParams = new URLSearchParams(window.location.search);
+            const queryValue = queryParams.get(name);
+            if (queryValue !== null && queryValue !== '') {
+                return queryValue;
+            }
+
+            const hash = window.location.hash.substring(1);
+            const hashParams = new URLSearchParams(hash);
+            return hashParams.get(name);
         }
 
         document.addEventListener('DOMContentLoaded', function() {

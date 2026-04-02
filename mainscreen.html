@@ -546,6 +546,89 @@
         .audio-player audio {
             width: 100%;
         }
+
+        .voicemail-prompt {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            bottom: 20px;
+            background: var(--background-color);
+            border: 1px solid var(--separator-color);
+            border-radius: 18px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+            padding: 16px;
+            z-index: 30;
+            display: none;
+        }
+
+        .voicemail-prompt.show {
+            display: block;
+        }
+
+        .voicemail-prompt-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .voicemail-prompt-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .voicemail-prompt-text {
+            font-size: 14px;
+            line-height: 1.4;
+            color: var(--text-secondary);
+        }
+
+        .voicemail-prompt-close {
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .voicemail-prompt-close:active {
+            background: var(--input-bg);
+        }
+
+        .voicemail-prompt-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+
+        .voicemail-prompt-button {
+            border: none;
+            border-radius: 14px;
+            background: var(--secondary-purple);
+            color: #fff;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .voicemail-prompt-button:active {
+            transform: scale(0.98);
+            background: var(--dark-purple);
+        }
     </style>
 </head>
 <body>
@@ -583,6 +666,26 @@
             <span class="calling-text">Calling <span id="callingId"></span></span>
         </div>
         <button class="cancel-call" id="cancelCall">Cancel</button>
+    </div>
+
+    <div class="voicemail-prompt" id="voicemailPrompt">
+        <div class="voicemail-prompt-header">
+            <div>
+                <div class="voicemail-prompt-title">Call failed, leave a voicemail?</div>
+                <div class="voicemail-prompt-text" id="voicemailPromptText">
+                    You can record a voice message and send it by email instead.
+                </div>
+            </div>
+            <button class="voicemail-prompt-close" id="voicemailPromptClose" aria-label="Close">
+                <i class="material-icons">close</i>
+            </button>
+        </div>
+        <div class="voicemail-prompt-actions">
+            <button class="voicemail-prompt-button" id="voicemailPromptRecord">
+                <i class="material-icons">mic</i>
+                <span>Record voicemail</span>
+            </button>
+        </div>
     </div>
 
     <!-- Voice Mail Full Screen -->
@@ -647,11 +750,16 @@
         const chatContainer = document.getElementById('chat-container');
         const contactsButton = document.querySelector(".contacts-button");
         const overlay = document.getElementById('callingOverlay');
+        const voicemailPrompt = document.getElementById('voicemailPrompt');
+        const voicemailPromptClose = document.getElementById('voicemailPromptClose');
+        const voicemailPromptRecord = document.getElementById('voicemailPromptRecord');
+        const voicemailPromptText = document.getElementById('voicemailPromptText');
 
         const urlParams = new URLSearchParams(window.location.search);
         const remoteId = urlParams.get('remoteId');
 
         const channel = new BroadcastChannel('myChannel');
+        let lastCallAttempt = '';
 
         if(remoteId != null) {
             console.log("opening chat" + remoteId);
@@ -714,6 +822,9 @@
 
                 case 'hideAttempt':
                     overlay.classList.remove('show');
+                    break;
+                case 'call-failed':
+                    handleCallFailed(event.data.body && event.data.body.message);
                     break;
             }
         });
@@ -789,6 +900,8 @@
         function makeCall(remoteId, contact) {
             var dialTarget = resolveDialTarget(remoteId);
             console.log("makeCall: input=" + remoteId + " resolved=" + dialTarget);
+            lastCallAttempt = remoteId || '';
+            closeVoicemailPrompt();
 
             const callingId = document.getElementById('callingId');
             console.log("contact: "+contact);
@@ -801,6 +914,35 @@
             }, { once: true });
             
             controller.call(dialTarget);
+        }
+
+        function closeVoicemailPrompt() {
+            voicemailPrompt.classList.remove('show');
+        }
+
+        function canOfferVoicemail(target) {
+            return typeof target === 'string' && target.indexOf('@') !== -1;
+        }
+
+        function openVoicemailScreen(recipient) {
+            voicemailRecipient.textContent = recipient;
+            voicemailScreen.classList.add('show');
+            initWaveform();
+            resetRecording();
+        }
+
+        function handleCallFailed(message) {
+            overlay.classList.remove('show');
+
+            if (!canOfferVoicemail(lastCallAttempt)) {
+                return;
+            }
+
+            input.value = lastCallAttempt;
+            voicemailPromptText.textContent = message
+                ? message + ' Leave a voicemail instead?'
+                : 'You can record a voice message and send it by email instead.';
+            voicemailPrompt.classList.add('show');
         }
         function downloadFile(fileId, cid, messageId) {
             console.log("downloading file: "+fileId);
@@ -868,10 +1010,16 @@
                 alert("Please enter an email address first");
                 return;
             }
-            voicemailRecipient.textContent = input.value;
-            voicemailScreen.classList.add('show');
-            initWaveform();
-            resetRecording();
+            openVoicemailScreen(input.value);
+        });
+
+        voicemailPromptClose.addEventListener("click", closeVoicemailPrompt);
+        voicemailPromptRecord.addEventListener("click", function() {
+            closeVoicemailPrompt();
+            if (!lastCallAttempt) {
+                return;
+            }
+            openVoicemailScreen(lastCallAttempt);
         });
 
         // Close voice mail screen

@@ -166,7 +166,14 @@
                     app.receivingCall(body.from);
                     break;
                 case 'error':
-                    app.showError(body.e);
+                    if (screen === 'MAIN' && screenFrame && screenFrame.contentWindow) {
+                        screenFrame.contentWindow.postMessage({
+                            action: 'call-failed',
+                            body: { message: body.e }
+                        }, '*');
+                    } else {
+                        app.showError(body.e);
+                    }
                     break;
                 case 'close-error':
                     app.hideError();
