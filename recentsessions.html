@@ -503,7 +503,11 @@
                         if (!this.deleteMode) {
                             window.parent.postMessage({ 
                                 action: 'call', 
-                                body: { remoteId: msgSessionId, contact: contact }
+                                body: {
+                                    sessionId: msgSessionId,
+                                    sessionName: contact || msgSessionId,
+                                    contact: contact || msgSessionId
+                                }
                             }, '*');
                         }
                     });

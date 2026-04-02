@@ -882,7 +882,8 @@
       window.parent.postMessage({ 
         action: 'call', 
         body: { 
-          remoteId: sessionId, 
+          sessionId: sessionId,
+          sessionName: window.contactName || sessionId,
           contact: window.contactName  // Use global contact
         }
       }, '*');
@@ -903,7 +904,7 @@
       const message = messageText.value.trim();
       if (message) {
         console.log("Sending message:", message);
-        controller.sendMessage(sessionId, message);
+        controller.sendMessage(sessionId, message, true);
         messageText.value = '';
       }
     });
@@ -1328,7 +1329,8 @@
         controller.sendImageMessage(
           sessionId,
           event.data.body.imageId,
-          event.data.body.caption || ''
+          event.data.body.caption || '',
+          true
         );
       }
     });

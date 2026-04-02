@@ -183,10 +183,16 @@
                 this.sendMessageToNativeApp(request);
             }
 
-            sendMessage(to, message) {
+            sendMessage(id, message, isSession = false) {
+                const body = { localId: this.localId, pid: this.pid, content: message };
+                if (isSession) {
+                    body.sessionId = id;
+                } else {
+                    body.remoteId = id;
+                }
                 const request = {
                     action: "send-message",
-                    body: { localId: this.localId, pid: this.pid, to: to, content: message }
+                    body: body
                 };
                 this.sendMessageToNativeApp(request);
             }
@@ -303,13 +309,19 @@
                 this.sendMessageToNativeApp(request);
             }
 
-            sendImageMessage(to, imageId, caption) {
+            sendImageMessage(id, imageId, caption, isSession = false) {
                 if (caption === '') {
                     console.log("Caption is empty 2");
                 }
+                const body = { localId: this.localId, pid: this.pid, fileId: imageId, content: caption };
+                if (isSession) {
+                    body.sessionId = id;
+                } else {
+                    body.remoteId = id;
+                }
                 const request = {
-                    action: "send-image-message",
-                    body: { localId: this.localId, pid: this.pid, to: to, imageId: imageId, content: caption }
+                    action: "send-file-message",
+                    body: body
                 };
                 this.sendMessageToNativeApp(request);
             }
