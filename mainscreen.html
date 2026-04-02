@@ -656,7 +656,7 @@
             </div>
         </div>
         <div class="iframe-container">
-            <iframe src="recentsessions.html" class="shimmer"></iframe>
+            <iframe id="recentSessionsIframe" class="shimmer"></iframe>
         </div>
     </div>
     <div id="chat-container"></div>
@@ -757,13 +757,26 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const remoteId = urlParams.get('remoteId');
+        const sessionId = urlParams.get('sessionId');
+        const localId = urlParams.get('localId');
 
         const channel = new BroadcastChannel('myChannel');
         let lastCallAttempt = '';
+        let overlayType = null;
 
-        if(remoteId != null) {
+        const recentSessionsIframe = document.getElementById('recentSessionsIframe');
+        if (localId) {
+            recentSessionsIframe.src = `recentsessions.html?localId=${encodeURIComponent(localId)}`;
+        } else {
+            recentSessionsIframe.src = 'recentsessions.html';
+        }
+
+        if (remoteId && remoteId !== 'null') {
             console.log("opening chat" + remoteId);
             openChat(remoteId);
+        } else if (sessionId && sessionId !== 'null') {
+            console.log("opening chat" + sessionId);
+            openChat(sessionId);
         }
 
         input.addEventListener('input', function(e) {
@@ -774,7 +787,7 @@
             if (input.value === ""){
                 return
             }
-            makeCall(input.value);
+            makeCall(null, input.value, input.value);
         });
 
         messageButton.addEventListener("click", function() {
@@ -797,7 +810,11 @@
         window.addEventListener('message', (event) => {
             switch (event.data.action) {
                 case 'call':
-                    makeCall(event.data.body.remoteId, event.data.body.contact);
+                    makeCall(
+                        event.data.body.sessionId || null,
+                        event.data.body.remoteId || event.data.body.sessionName || '',
+                        event.data.body.contact || event.data.body.sessionName || event.data.body.remoteId || ''
+                    );
                     break;
                     
                 case 'chat':
@@ -829,9 +846,10 @@
             }
         });
         
-        window.addEventListener('popstate', function(event) {
-            console.log("back button pressed");
-            closeChat();
+        window.addEventListener('popstate', function() {
+            if (overlayType === 'chat') {
+                closeChat(true);
+            }
         });
 
         channel.addEventListener('message', (event) => {
@@ -845,10 +863,15 @@
         });
 
         function openChat(sessionId) {
+            if (!overlayType) {
+                history.pushState({page: 'chat'}, '', location.href);
+            }
+            overlayType = 'chat';
+
             const iframe = document.createElement('iframe');
             iframe.className = 'chat-iframe';
             iframe.style.cssText = 'width:100%;height:100%;border:none;visibility:hidden;';
-            iframe.src = `chat.html?sessionId=${encodeURIComponent(sessionId)}`;
+            iframe.src = `chat.html?sessionId=${encodeURIComponent(sessionId)}&localId=${encodeURIComponent(localId || '')}`;
             
             chatContainer.innerHTML = '';
             chatContainer.appendChild(iframe);
@@ -858,12 +881,20 @@
                     iframe.style.visibility = 'visible';
                     document.querySelector('.container').classList.add('slide-left');
                     chatContainer.classList.add('slide-left');
-                    history.pushState({page: 'chat'}, '', 'chat');
                 }, 50);
             };
         }
 
-        function closeChat() {
+        function closeChat(fromPopstate = false) {
+            if (overlayType !== 'chat') {
+                return;
+            }
+
+            overlayType = null;
+            if (!fromPopstate) {
+                history.back();
+            }
+
             document.querySelector('.container').classList.remove('slide-left');
             chatContainer.classList.remove('slide-left');
             controller.getRecentSessions(20);
@@ -897,23 +928,27 @@
             return value;
         }
 
-        function makeCall(remoteId, contact) {
-            var dialTarget = resolveDialTarget(remoteId);
-            console.log("makeCall: input=" + remoteId + " resolved=" + dialTarget);
-            lastCallAttempt = remoteId || '';
+        function makeCall(sessionIdValue, rawTarget, contactLabel) {
+            var dialTarget = resolveDialTarget(rawTarget || '');
+            console.log("makeCall: input=" + rawTarget + " resolved=" + dialTarget);
+            lastCallAttempt = rawTarget || '';
             closeVoicemailPrompt();
 
             const callingId = document.getElementById('callingId');
-            console.log("contact: "+contact);
-            callingId.textContent = contact && contact !== '' ? contact : remoteId;
+            console.log("contact: "+contactLabel);
+            callingId.textContent = contactLabel && contactLabel !== '' ? contactLabel : rawTarget;
             overlay.classList.add('show');
             
             document.getElementById('cancelCall').addEventListener('click', () => {
-                controller.rejectCall(dialTarget);
+                controller.rejectCall(sessionIdValue || dialTarget);
                 overlay.classList.remove('show');
             }, { once: true });
-            
-            controller.call(dialTarget);
+
+            if (sessionIdValue) {
+                controller.callSession(sessionIdValue);
+            } else {
+                controller.callRemote(dialTarget);
+            }
         }
 
         function closeVoicemailPrompt() {

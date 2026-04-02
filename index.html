@@ -29,31 +29,68 @@
     <script>
 
         guiFrame = document.getElementById('guiFrame');
-        pid = getUrlParameter('pid');
-        screen = getUrlParameter('screen') || 'MAIN';
-        localId = getUrlParameter('localId');
-        remoteId = getUrlParameter('remoteId');
 
-        if (screen === 'TEST') {
-            guiFrame.src = "test.html";
-        } else {
-            guiFrame.src = "app.html?screen=" + screen + "&localId=" + encodeURIComponent(localId) + "&remoteId=" + encodeURIComponent(remoteId);
-        }
+        pid = null;
+        screen = null;
+        localId = null;
+        remoteId = null;
+        sessionId = null;
+        videoCall = false;
 
         function getUrlParameter(name) {
-            // Support both native URL styles:
-            // 1. hash fragments: index.html#screen=MAIN&localId=...
-            // 2. query params:   index.html?screen=MAIN&localId=...
-            const queryParams = new URLSearchParams(window.location.search);
-            const queryValue = queryParams.get(name);
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        function getHashParameter(name) {
+            const raw = window.location.hash && window.location.hash.charAt(0) === '#' ? window.location.hash.slice(1) : window.location.hash;
+            if (!raw) return null;
+            const hashParams = new URLSearchParams(raw);
+            return hashParams.get(name);
+        }
+
+        function getParam(name) {
+            const queryValue = getUrlParameter(name);
             if (queryValue !== null && queryValue !== '') {
                 return queryValue;
             }
-
-            const hash = window.location.hash.substring(1);
-            const hashParams = new URLSearchParams(hash);
-            return hashParams.get(name);
+            const hashValue = getHashParameter(name);
+            if (hashValue !== null && hashValue !== '') {
+                return hashValue;
+            }
+            return null;
         }
+
+        function applyRouteFromLocation() {
+            pid = getParam('pid');
+            screen = getParam('screen') || 'MAIN';
+            localId = getParam('localId');
+            remoteId = getParam('remoteId');
+            sessionId = getParam('sessionId');
+            videoCall = getParam('videoCall') === 'true';
+
+            if (screen === 'TEST') {
+                guiFrame.src = "test.html";
+            } else {
+                guiFrame.src =
+                    "app.html?screen=" + encodeURIComponent(screen) +
+                    "&localId=" + encodeURIComponent(localId || '') +
+                    "&remoteId=" + encodeURIComponent(remoteId || '') +
+                    "&sessionId=" + encodeURIComponent(sessionId || '') +
+                    "&videoCall=" + videoCall;
+            }
+
+            if (window.top.controller) {
+                window.top.controller.pid = pid;
+                window.top.controller.localId = localId;
+            }
+        }
+
+        applyRouteFromLocation();
+
+        window.addEventListener('hashchange', function() {
+            applyRouteFromLocation();
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             window.top.controller = new Controller();
@@ -87,9 +124,21 @@
             // Native actions
 
             call(to) {
+                this.callRemote(to);
+            }
+
+            callRemote(remoteId) {
                 const callRequest = {
-                    action: "call",
-                    body: { localId: this.localId, pid: this.pid, to: to }
+                    action: "call-remote",
+                    body: { localId: this.localId, pid: this.pid, remoteId: remoteId }
+                };
+                this.sendMessageToNativeApp(callRequest);
+            }
+
+            callSession(sessionId) {
+                const callRequest = {
+                    action: "call-session",
+                    body: { localId: this.localId, pid: this.pid, sessionId: sessionId }
                 };
                 this.sendMessageToNativeApp(callRequest);
             }

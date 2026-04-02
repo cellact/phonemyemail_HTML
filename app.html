@@ -40,34 +40,35 @@
         const channel = new BroadcastChannel('myChannel');
         const screenFrame = document.getElementById('screenFrame');
         const urlParams = new URLSearchParams(window.location.search);
-        const screen = decodeURIComponent(urlParams.get('screen'));
-        const localId = decodeURIComponent(urlParams.get('localId'));
-        const remoteId = decodeURIComponent(urlParams.get('remoteId'));
+        const decodeParam = (name) => {
+            const value = urlParams.get(name);
+            return value === null ? '' : decodeURIComponent(value);
+        };
+        const screen = decodeParam('screen');
+        const localId = decodeParam('localId');
+        const remoteId = decodeParam('remoteId');
+        const sessionId = decodeParam('sessionId');
+        const videoCall = urlParams.get('videoCall') === 'true';
 
         switch (screen) {
             case 'MAIN':
-                screenFrame.src = "mainscreen.html";
+                screenFrame.src = "mainscreen.html?localId=" + encodeURIComponent(localId || '');
                 break;
             case 'CHAT':
-            //    history.replaceState({}, '', 'app.html?screen=MAIN&localId='+encodeURIComponent(localId)+'&remoteId=null');
-                screenFrame.src = "mainscreen.html?remoteId="+encodeURIComponent(remoteId);
-            //    screenFrame.onload = function() {
-            //        screenFrame.contentWindow.postMessage({
-            //            action: 'chat',
-            //            body: {
-            //                sessionId: encodeURIComponent(remoteId)
-            //            }
-            //       }, '*');
-            //    };
+                if (sessionId && sessionId !== 'null') {
+                    screenFrame.src = "mainscreen.html?localId=" + encodeURIComponent(localId || '') + "&sessionId=" + encodeURIComponent(sessionId);
+                } else {
+                    screenFrame.src = "mainscreen.html?localId=" + encodeURIComponent(localId || '') + "&remoteId=" + encodeURIComponent(remoteId || '');
+                }
                 break;
             case 'CALL':
-                screenFrame.src = "incall.html?to=" + encodeURIComponent(remoteId);
+                screenFrame.src = "incall.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
                 break;
             case 'RING':
-                screenFrame.src = "ringing.html?to=" + encodeURIComponent(remoteId);
+                screenFrame.src = "ringing.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
                 break;
             case 'INCOMING':
-                screenFrame.src = "incomingcall.html?from=" + encodeURIComponent(remoteId);
+                screenFrame.src = "incomingcall.html?from=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
                 break;
         }
 
@@ -114,7 +115,7 @@
                 const errorFrame = document.getElementById('error-frame');
                 errorFrame.style.display = 'none';
             }
-            
+
             dataFetched(jsonData) {
                 console.log('Received raw data:', JSON.stringify(jsonData));
                 const data = JSON.parse(JSON.stringify(jsonData));
@@ -124,6 +125,7 @@
                     console.error("Error parsing JSON or processing data:", error);
                 }
             }
+            
             openContacts() {
                 controller.openContacts();
             }
