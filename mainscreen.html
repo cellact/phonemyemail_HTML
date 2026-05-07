@@ -741,6 +741,7 @@
         </div>
     </div>
 
+    <script src="assets/js/lame.min.js"></script>
     <script>
         const controller = window.top.controller;
         const input = document.querySelector("#numberInput");
@@ -1169,6 +1170,92 @@
             });
         }
 
+        function getAudioContextClass() {
+            return window.AudioContext || window.webkitAudioContext || null;
+        }
+
+        function floatTo16BitPCM(float32Array) {
+            var pcm = new Int16Array(float32Array.length);
+            for (var i = 0; i < float32Array.length; i++) {
+                var sample = Math.max(-1, Math.min(1, float32Array[i]));
+                pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            }
+            return pcm;
+        }
+
+        function decodeAudioDataCompat(audioContext, arrayBuffer) {
+            return new Promise(function(resolve, reject) {
+                audioContext.decodeAudioData(arrayBuffer, resolve, reject);
+            });
+        }
+
+        async function transcodeRecordingToMp3(sourceBlob) {
+            if (!window.lamejs || !window.lamejs.Mp3Encoder) {
+                throw new Error('MP3 encoder failed to load');
+            }
+
+            var AudioContextClass = getAudioContextClass();
+            if (!AudioContextClass) {
+                throw new Error('Audio decoding is not supported on this device');
+            }
+
+            var audioContext = new AudioContextClass();
+
+            try {
+                var sourceBuffer = await sourceBlob.arrayBuffer();
+                var audioBuffer = await decodeAudioDataCompat(audioContext, sourceBuffer.slice(0));
+                var channelCount = Math.min(audioBuffer.numberOfChannels || 1, 2);
+                var leftChannel = audioBuffer.getChannelData(0);
+                var sampleRate = audioBuffer.sampleRate || 44100;
+                var encoder = new window.lamejs.Mp3Encoder(channelCount, sampleRate, 128);
+                var blockSize = 1152;
+                var mp3Chunks = [];
+
+                if (channelCount === 1) {
+                    var monoPcm = floatTo16BitPCM(leftChannel);
+                    for (var monoOffset = 0; monoOffset < monoPcm.length; monoOffset += blockSize) {
+                        var monoChunk = monoPcm.subarray(monoOffset, monoOffset + blockSize);
+                        var monoEncoded = encoder.encodeBuffer(monoChunk);
+                        if (monoEncoded.length > 0) {
+                            mp3Chunks.push(new Int8Array(monoEncoded));
+                        }
+                    }
+                } else {
+                    var rightChannel = audioBuffer.getChannelData(1);
+                    var leftPcm = floatTo16BitPCM(leftChannel);
+                    var rightPcm = floatTo16BitPCM(rightChannel);
+
+                    for (var stereoOffset = 0; stereoOffset < leftPcm.length; stereoOffset += blockSize) {
+                        var leftChunk = leftPcm.subarray(stereoOffset, stereoOffset + blockSize);
+                        var rightChunk = rightPcm.subarray(stereoOffset, stereoOffset + blockSize);
+                        var stereoEncoded = encoder.encodeBuffer(leftChunk, rightChunk);
+                        if (stereoEncoded.length > 0) {
+                            mp3Chunks.push(new Int8Array(stereoEncoded));
+                        }
+                    }
+                }
+
+                var flushData = encoder.flush();
+                if (flushData.length > 0) {
+                    mp3Chunks.push(new Int8Array(flushData));
+                }
+
+                if (!mp3Chunks.length) {
+                    throw new Error('MP3 conversion produced no audio data');
+                }
+
+                return new Blob(mp3Chunks, { type: 'audio/mpeg' });
+            } finally {
+                if (audioContext && typeof audioContext.close === 'function') {
+                    try {
+                        await audioContext.close();
+                    } catch (closeError) {
+                        console.log('AudioContext close failed:', closeError);
+                    }
+                }
+            }
+        }
+
         // Send voicemail through native bridge first, then fall back to share/download
         sendVoicemailButton.addEventListener("click", async function() {
             if (!audioBlob) {
@@ -1192,17 +1279,33 @@
                 'I\'ve recorded a voice message for you - it\'s attached.\n\n' +
                 'If you want to phone me back, feel free to phone my email!\n\n' +
                 'Best regards';
+            var previousStatus = recordingStatus.innerHTML;
+            sendVoicemailButton.disabled = true;
+            recordAgainButton.disabled = true;
 
-            // Create a File from the audio blob
-            var audioFile = new File(
-                [audioBlob], 
-                'voicemail.webm', 
-                { type: audioBlob.type || 'audio/webm' }
-            );
+            var audioFile;
+            try {
+                recordingStatus.innerHTML = '<span>Converting to MP3...</span>';
+                await new Promise(function(resolve) { setTimeout(resolve, 0); });
+                var mp3Blob = await transcodeRecordingToMp3(audioBlob);
+                audioFile = new File(
+                    [mp3Blob],
+                    'voicemail.mp3',
+                    { type: 'audio/mpeg' }
+                );
+                recordingStatus.innerHTML = '<span>MP3 ready - opening email...</span>';
+            } catch (conversionError) {
+                console.error('MP3 conversion failed:', conversionError);
+                recordingStatus.innerHTML = previousStatus;
+                sendVoicemailButton.disabled = false;
+                recordAgainButton.disabled = false;
+                alert('Could not convert the recording to MP3 on this device.');
+                return;
+            }
 
             // Preferred path: let native client open the email composer
             try {
-                var fileDataBase64 = await blobToBase64(audioBlob);
+                var fileDataBase64 = await blobToBase64(audioFile);
                 controller.sendMessageToNativeApp({
                     action: "send-email-with-attachment",
                     body: {
@@ -1210,7 +1313,7 @@
                         subject: subject,
                         content: emailBody,
                         fileName: audioFile.name,
-                        mimeType: audioFile.type || 'audio/webm',
+                        mimeType: audioFile.type || 'audio/mpeg',
                         fileDataBase64: fileDataBase64
                     }
                 });
@@ -1231,7 +1334,12 @@
                     closeVoicemailScreen();
                     return;
                 } catch (err) {
-                    if (err.name === 'AbortError') return;
+                    if (err.name === 'AbortError') {
+                        recordingStatus.innerHTML = previousStatus;
+                        sendVoicemailButton.disabled = false;
+                        recordAgainButton.disabled = false;
+                        return;
+                    }
                     console.log('Share with file failed:', err);
                 }
             }
@@ -1246,17 +1354,22 @@
                     closeVoicemailScreen();
                     return;
                 } catch (err) {
-                    if (err.name === 'AbortError') return;
+                    if (err.name === 'AbortError') {
+                        recordingStatus.innerHTML = previousStatus;
+                        sendVoicemailButton.disabled = false;
+                        recordAgainButton.disabled = false;
+                        return;
+                    }
                     console.log('Share failed:', err);
                 }
             }
 
             // Last resort: download + alert
             try {
-                var url = URL.createObjectURL(audioBlob);
+                var url = URL.createObjectURL(audioFile);
                 var a = document.createElement('a');
                 a.href = url;
-                a.download = 'voicemail.webm';
+                a.download = audioFile.name;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -1265,6 +1378,9 @@
                 closeVoicemailScreen();
             } catch (e) {
                 console.error('Fallback failed:', e);
+                recordingStatus.innerHTML = previousStatus;
+                sendVoicemailButton.disabled = false;
+                recordAgainButton.disabled = false;
                 alert('Could not share. Please try again.');
             }
         });

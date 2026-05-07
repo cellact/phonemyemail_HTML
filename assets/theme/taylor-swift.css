@@ -1,0 +1,166 @@
+:root {
+    --secondary-purple: #25d366 !important;
+    --light-purple: #dcf8c6 !important;
+    --dark-purple: #128c7e !important;
+    --purple-05: rgba(37, 211, 102, 0.08) !important;
+    --purple-10: rgba(37, 211, 102, 0.14) !important;
+    --purple-20: rgba(37, 211, 102, 0.22) !important;
+    --shadow-color: rgba(18, 140, 126, 0.2) !important;
+    --shadow-color-active: rgba(18, 140, 126, 0.28) !important;
+    --unread-blue: #25d366 !important;
+    --purple-gradient: linear-gradient(180deg, #0e7a6f 0%, #075e54 100%) !important;
+    --chat-wallpaper:
+        radial-gradient(circle at 12% 22%, rgba(37, 211, 102, 0.08) 0 2px, transparent 2.5px),
+        radial-gradient(circle at 72% 28%, rgba(18, 140, 126, 0.08) 0 2px, transparent 2.5px),
+        radial-gradient(circle at 32% 76%, rgba(220, 248, 198, 0.6) 0 1.5px, transparent 2.2px),
+        linear-gradient(180deg, #efeae2 0%, #e8e1d7 100%) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --secondary-purple: #25d366 !important;
+        --light-purple: #1f3d35 !important;
+        --dark-purple: #0b6b60 !important;
+        --purple-05: rgba(37, 211, 102, 0.1) !important;
+        --purple-10: rgba(37, 211, 102, 0.18) !important;
+        --purple-20: rgba(37, 211, 102, 0.28) !important;
+        --shadow-color: rgba(0, 0, 0, 0.3) !important;
+        --shadow-color-active: rgba(0, 0, 0, 0.38) !important;
+        --unread-blue: #25d366 !important;
+        --purple-gradient: linear-gradient(180deg, #103c37 0%, #081b1a 100%) !important;
+        --chat-wallpaper:
+            radial-gradient(circle at 12% 22%, rgba(37, 211, 102, 0.08) 0 2px, transparent 2.5px),
+            radial-gradient(circle at 72% 28%, rgba(18, 140, 126, 0.08) 0 2px, transparent 2.5px),
+            radial-gradient(circle at 32% 76%, rgba(37, 211, 102, 0.08) 0 1.5px, transparent 2.2px),
+            linear-gradient(180deg, #111b21 0%, #0b141a 100%) !important;
+    }
+}
+
+html,
+body {
+    background: var(--chat-wallpaper) !important;
+    background-attachment: fixed !important;
+}
+
+.header,
+.container,
+#chat-container,
+.error-modal,
+.calling-overlay,
+.input-container,
+.message-input-container,
+.chat-header,
+.chat-container,
+.recent-calls,
+.call-log,
+.call-entry {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.header {
+    background: #075e54 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.container,
+#chat-container {
+    background: transparent !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    .header {
+        background: #0b3f3a !important;
+    }
+}
+
+.input-container {
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.input-container:focus-within {
+    background-color: #ffffff !important;
+    border-color: var(--secondary-purple) !important;
+}
+
+.action-button,
+.call-button.active,
+.voice-mail-button,
+#sendVoicemailButton,
+#recordAgainButton,
+#startRecordingButton,
+#stopRecordingButton,
+.voicemail-prompt-button {
+    background: linear-gradient(135deg, #25d366 0%, #128c7e 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 20px rgba(18, 140, 126, 0.22) !important;
+}
+
+.action-button:active,
+.call-button.active:active,
+.voice-mail-button:active,
+#sendVoicemailButton:active,
+#recordAgainButton:active,
+#startRecordingButton:active,
+#stopRecordingButton:active,
+.voicemail-prompt-button:active {
+    background: linear-gradient(135deg, #1fb85a 0%, #0f766b 100%) !important;
+}
+
+.contacts-button i,
+.group-button i,
+.input-icon,
+.material-icons,
+.material-symbols-outlined {
+    color: inherit;
+}
+
+.header .contacts-button i,
+.header .group-button i,
+.header .input-icon {
+    color: #6ff0b0 !important;
+}
+
+.profile-circle,
+.ringing-animation {
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18) !important;
+}
+
+.error-modal,
+.calling-overlay {
+    background: linear-gradient(135deg, rgba(18, 140, 126, 0.9) 0%, rgba(7, 94, 84, 0.92) 100%) !important;
+}
+
+.call-entry {
+    background: rgba(255, 255, 255, 0.78) !important;
+    border-bottom: 1px solid rgba(18, 140, 126, 0.12) !important;
+    border-radius: 16px;
+    margin: 8px 10px;
+    box-shadow: 0 6px 16px rgba(18, 140, 126, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    .call-entry {
+        background: rgba(17, 27, 33, 0.9) !important;
+    }
+}
+
+.contact-name {
+    color: #111b21 !important;
+    font-weight: 600;
+}
+
+.call-time {
+    color: #667781 !important;
+}
+
+.call-icon {
+    color: var(--dark-purple) !important;
+}
+
+input[type="text"],
+textarea {
+    caret-color: var(--secondary-purple);
+}
