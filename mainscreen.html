@@ -1008,6 +1008,9 @@
         let timerInterval;
         let audioBlob;
         let waveformBars = [];
+        let audioFile;
+        let currentAudioUrl = null;
+        let previewPreparationPromise = null;
 
         // Initialize waveform bars
         function initWaveform() {
@@ -1038,6 +1041,24 @@
             waveformBars.forEach(bar => {
                 bar.style.height = '4px';
             });
+        }
+
+        function clearAudioPreview() {
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+            audioPlayback.pause();
+            audioPlayback.removeAttribute('src');
+            audioPlayback.load();
+        }
+
+        function showAudioPreview(blob) {
+            clearAudioPreview();
+            currentAudioUrl = URL.createObjectURL(blob);
+            audioPlayback.src = currentAudioUrl;
+            audioPlayback.load();
+            audioPlayer.classList.add('show');
         }
 
         // Open voice mail screen
@@ -1072,6 +1093,8 @@
         function resetRecording() {
             audioChunks = [];
             audioBlob = null;
+            audioFile = null;
+            previewPreparationPromise = null;
             recordingTimer.textContent = '00:00';
             recordingStatus.innerHTML = '<span>Ready to record</span>';
             recordButton.style.display = 'block';
@@ -1080,6 +1103,7 @@
             recordAgainButton.style.display = 'none';
             sendVoicemailButton.style.display = 'none';
             audioPlayer.classList.remove('show');
+            clearAudioPreview();
             resetWaveform();
         }
 
@@ -1098,16 +1122,27 @@
                     audioChunks.push(event.data);
                 };
 
-                mediaRecorder.onstop = () => {
-                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    audioPlayback.src = audioUrl;
-                    audioPlayer.classList.add('show');
+                mediaRecorder.onstop = async () => {
+                    const recordingMimeType = mediaRecorder.mimeType || (audioChunks[0] && audioChunks[0].type) || 'audio/webm';
+                    audioBlob = new Blob(audioChunks, { type: recordingMimeType });
+                    audioFile = null;
+                    previewPreparationPromise = null;
                     recordAgainButton.style.display = 'block';
                     sendVoicemailButton.style.display = 'block';
-                    
-                    // Stop all tracks
-                    stream.getTracks().forEach(track => track.stop());
+
+                    try {
+                        recordingStatus.innerHTML = '<span>Preparing MP3 preview...</span>';
+                        const preparedAudioFile = await ensureMp3File();
+                        showAudioPreview(preparedAudioFile);
+                        recordingStatus.innerHTML = '<span>Recording complete - MP3 preview ready</span>';
+                    } catch (previewError) {
+                        console.error('MP3 preview preparation failed:', previewError);
+                        showAudioPreview(audioBlob);
+                        recordingStatus.innerHTML = '<span>Recording complete - Preview below</span>';
+                    } finally {
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                    }
                 };
 
                 mediaRecorder.start();
@@ -1256,6 +1291,30 @@
             }
         }
 
+        async function ensureMp3File() {
+            if (audioFile) {
+                return audioFile;
+            }
+
+            if (!audioBlob) {
+                throw new Error('No recording available');
+            }
+
+            if (!previewPreparationPromise) {
+                previewPreparationPromise = (async function() {
+                    var mp3Blob = await transcodeRecordingToMp3(audioBlob);
+                    audioFile = new File(
+                        [mp3Blob],
+                        'voicemail.mp3',
+                        { type: 'audio/mpeg' }
+                    );
+                    return audioFile;
+                })();
+            }
+
+            return previewPreparationPromise;
+        }
+
         // Send voicemail through native bridge first, then fall back to share/download
         sendVoicemailButton.addEventListener("click", async function() {
             if (!audioBlob) {
@@ -1283,16 +1342,11 @@
             sendVoicemailButton.disabled = true;
             recordAgainButton.disabled = true;
 
-            var audioFile;
+            var preparedAudioFile;
             try {
-                recordingStatus.innerHTML = '<span>Converting to MP3...</span>';
+                recordingStatus.innerHTML = '<span>Preparing MP3...</span>';
                 await new Promise(function(resolve) { setTimeout(resolve, 0); });
-                var mp3Blob = await transcodeRecordingToMp3(audioBlob);
-                audioFile = new File(
-                    [mp3Blob],
-                    'voicemail.mp3',
-                    { type: 'audio/mpeg' }
-                );
+                preparedAudioFile = await ensureMp3File();
                 recordingStatus.innerHTML = '<span>MP3 ready - opening email...</span>';
             } catch (conversionError) {
                 console.error('MP3 conversion failed:', conversionError);
@@ -1305,15 +1359,15 @@
 
             // Preferred path: let native client open the email composer
             try {
-                var fileDataBase64 = await blobToBase64(audioFile);
+                var fileDataBase64 = await blobToBase64(preparedAudioFile);
                 controller.sendMessageToNativeApp({
                     action: "send-email-with-attachment",
                     body: {
                         to: recipientEmail,
                         subject: subject,
                         content: emailBody,
-                        fileName: audioFile.name,
-                        mimeType: audioFile.type || 'audio/mpeg',
+                        fileName: preparedAudioFile.name,
+                        mimeType: preparedAudioFile.type || 'audio/mpeg',
                         fileDataBase64: fileDataBase64
                     }
                 });
@@ -1324,12 +1378,12 @@
             }
 
             // Use Web Share API - auto-attaches the audio file
-            if (navigator.canShare && navigator.canShare({ files: [audioFile] })) {
+            if (navigator.canShare && navigator.canShare({ files: [preparedAudioFile] })) {
                 try {
                     await navigator.share({
                         title: subject,
                         text: emailBody,
-                        files: [audioFile]
+                        files: [preparedAudioFile]
                     });
                     closeVoicemailScreen();
                     return;
@@ -1366,10 +1420,10 @@
 
             // Last resort: download + alert
             try {
-                var url = URL.createObjectURL(audioFile);
+                var url = URL.createObjectURL(preparedAudioFile);
                 var a = document.createElement('a');
                 a.href = url;
-                a.download = audioFile.name;
+                a.download = preparedAudioFile.name;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
