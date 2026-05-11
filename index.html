@@ -82,7 +82,7 @@
 
             if (window.top.controller) {
                 window.top.controller.pid = pid;
-                window.top.controller.localId = localId;
+                window.top.controller.setLocalId(localId);
             }
         }
 
@@ -102,6 +102,49 @@
                 this.guiFrame = guiFrame;
                 this.pid = pid;
                 this.localId = localId;
+                this.callLocalIdPromise = null;
+            }
+
+            setLocalId(localId) {
+                this.localId = localId;
+                this.callLocalIdPromise = null;
+            }
+
+            isEmailAddress(value) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+            }
+
+            async formatCallerLocalId(localId) {
+                if (!localId) {
+                    return localId;
+                }
+
+                const normalized = localId.trim().toLowerCase();
+                if (normalized.endsWith(".email.global") || normalized.endsWith(".wallet.global")) {
+                    return normalized;
+                }
+
+                if (!this.isEmailAddress(normalized)) {
+                    return localId;
+                }
+
+                if (!window.crypto || !window.crypto.subtle || !window.TextEncoder) {
+                    console.warn("WebCrypto unavailable; using unhashed email localId");
+                    return normalized;
+                }
+
+                const encoded = new TextEncoder().encode(normalized);
+                const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+                const bytes = Array.from(new Uint8Array(digest));
+                const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+                return hex.slice(0, 12) + ".email.global";
+            }
+
+            async getCallerLocalIdForCall() {
+                if (!this.callLocalIdPromise) {
+                    this.callLocalIdPromise = this.formatCallerLocalId(this.localId);
+                }
+                return this.callLocalIdPromise;
             }
 
             receiveData(_data) {
@@ -127,18 +170,20 @@
                 this.callRemote(to);
             }
 
-            callRemote(remoteId) {
+            async callRemote(remoteId) {
+                const callerLocalId = await this.getCallerLocalIdForCall();
                 const callRequest = {
                     action: "call-remote",
-                    body: { localId: this.localId, pid: this.pid, remoteId: remoteId }
+                    body: { localId: callerLocalId, pid: this.pid, remoteId: remoteId }
                 };
                 this.sendMessageToNativeApp(callRequest);
             }
 
-            callSession(sessionId) {
+            async callSession(sessionId) {
+                const callerLocalId = await this.getCallerLocalIdForCall();
                 const callRequest = {
                     action: "call-session",
-                    body: { localId: this.localId, pid: this.pid, sessionId: sessionId }
+                    body: { localId: callerLocalId, pid: this.pid, sessionId: sessionId }
                 };
                 this.sendMessageToNativeApp(callRequest);
             }
