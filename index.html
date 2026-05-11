@@ -147,6 +147,19 @@
                 return this.callLocalIdPromise;
             }
 
+            async formatRemoteIdForCall(remoteId) {
+                if (typeof remoteId !== "string") {
+                    return remoteId;
+                }
+
+                const trimmed = remoteId.trim();
+                if (!trimmed) {
+                    return trimmed;
+                }
+
+                return this.formatCallerLocalId(trimmed);
+            }
+
             receiveData(_data) {
                 const data = JSON.parse(_data);
                 this.guiFrame.contentWindow.postMessage(data, '*');
@@ -172,9 +185,10 @@
 
             async callRemote(remoteId) {
                 const callerLocalId = await this.getCallerLocalIdForCall();
+                const formattedRemoteId = await this.formatRemoteIdForCall(remoteId);
                 const callRequest = {
                     action: "call-remote",
-                    body: { localId: callerLocalId, pid: this.pid, remoteId: remoteId }
+                    body: { localId: callerLocalId, pid: this.pid, remoteId: formattedRemoteId }
                 };
                 this.sendMessageToNativeApp(callRequest);
             }
