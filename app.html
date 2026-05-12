@@ -52,11 +52,22 @@
         const contact = decodeParam('contact');
         const displayName = decodeParam('displayName');
         const videoCall = urlParams.get('videoCall') === 'true';
+        const getStoredDisplayName = (canonicalRemoteId) => {
+            const key = (canonicalRemoteId || '').trim().toLowerCase();
+            if (!key) return '';
+            try {
+                return window.sessionStorage.getItem("displayRemote:" + key) || '';
+            } catch (error) {
+                console.log("Could not read cached display name:", error);
+                return '';
+            }
+        };
+        const inferredDisplayName = displayName || contact || sessionName || getStoredDisplayName(remoteId);
         const encodeDisplayParams = () => {
             const query = [];
             if (sessionName) query.push("sessionName=" + encodeURIComponent(sessionName));
             if (contact) query.push("contact=" + encodeURIComponent(contact));
-            if (displayName) query.push("displayName=" + encodeURIComponent(displayName));
+            if (inferredDisplayName) query.push("displayName=" + encodeURIComponent(inferredDisplayName));
             return query.length ? "&" + query.join("&") : "";
         };
 

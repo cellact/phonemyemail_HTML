@@ -160,6 +160,26 @@
                 return this.formatCallerLocalId(trimmed);
             }
 
+            storeRemoteDisplayName(canonicalRemoteId, displayRemoteId) {
+                if (typeof canonicalRemoteId !== "string" || typeof displayRemoteId !== "string") {
+                    return;
+                }
+                const canonical = canonicalRemoteId.trim().toLowerCase();
+                const display = displayRemoteId.trim();
+                if (!canonical || !display) {
+                    return;
+                }
+                if (canonical === display.toLowerCase()) {
+                    return;
+                }
+
+                try {
+                    window.sessionStorage.setItem("displayRemote:" + canonical, display);
+                } catch (error) {
+                    console.log("Failed to cache display remote identity:", error);
+                }
+            }
+
             receiveData(_data) {
                 const data = JSON.parse(_data);
                 this.guiFrame.contentWindow.postMessage(data, '*');
@@ -186,6 +206,7 @@
             async callRemote(remoteId) {
                 const callerLocalId = await this.getCallerLocalIdForCall();
                 const formattedRemoteId = await this.formatRemoteIdForCall(remoteId);
+                this.storeRemoteDisplayName(formattedRemoteId, remoteId);
                 const callRequest = {
                     action: "call-remote",
                     body: { localId: callerLocalId, pid: this.pid, remoteId: formattedRemoteId }
