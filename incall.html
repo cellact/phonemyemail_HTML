@@ -428,6 +428,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const channel = new BroadcastChannel('myChannel');
         const callId = decodeURIComponent(urlParams.get('to'));
+        const sessionId = decodeURIComponent(urlParams.get('sessionId') || '');
+        const sessionName = decodeURIComponent(urlParams.get('sessionName') || '');
+        const contact = decodeURIComponent(urlParams.get('contact') || '');
+        const displayNameParam = decodeURIComponent(urlParams.get('displayName') || '');
 
         if (callId) {
             const encodedCallId = encodeURIComponent(callId);
@@ -458,11 +462,20 @@
         let callDuration = 0;
         let callInterval;
         let audioDevices = {};
+        const getDisplayName = () => displayNameParam || sessionName || contact || callId;
+        const setDisplayName = (value) => {
+            const resolved = value || callId;
+            phoneNumberElement.textContent = resolved;
+            document.querySelector("#initial").textContent = resolved ? resolved.charAt(0).toUpperCase() : '';
+        };
 
         if (callId) {
-            phoneNumberElement.textContent = callId;
-            document.querySelector("#initial").textContent = callId.charAt(0).toUpperCase();
+            setDisplayName(getDisplayName());
             startCallTimer();
+        }
+
+        if (sessionId) {
+            controller.getContactName(sessionId);
         }
 
         function startCallTimer() {
@@ -585,6 +598,9 @@
                 if (data.activeCalls !== undefined) updateHeldCallsList(data.activeCalls);
                 if (data.audioDevices !== undefined) {
                     updateAudioDevices(data.audioDevices);
+                }
+                if (data.contactName) {
+                    setDisplayName(data.contactName);
                 }
             } catch (error) {
                 console.error("Error parsing message data:", error);

@@ -48,7 +48,17 @@
         const localId = decodeParam('localId');
         const remoteId = decodeParam('remoteId');
         const sessionId = decodeParam('sessionId');
+        const sessionName = decodeParam('sessionName');
+        const contact = decodeParam('contact');
+        const displayName = decodeParam('displayName');
         const videoCall = urlParams.get('videoCall') === 'true';
+        const encodeDisplayParams = () => {
+            const query = [];
+            if (sessionName) query.push("sessionName=" + encodeURIComponent(sessionName));
+            if (contact) query.push("contact=" + encodeURIComponent(contact));
+            if (displayName) query.push("displayName=" + encodeURIComponent(displayName));
+            return query.length ? "&" + query.join("&") : "";
+        };
 
         switch (screen) {
             case 'MAIN':
@@ -62,13 +72,13 @@
                 }
                 break;
             case 'CALL':
-                screenFrame.src = "incall.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
+                screenFrame.src = "incall.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall + encodeDisplayParams();
                 break;
             case 'RING':
-                screenFrame.src = "ringing.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
+                screenFrame.src = "ringing.html?to=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall + encodeDisplayParams();
                 break;
             case 'INCOMING':
-                screenFrame.src = "incomingcall.html?from=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall;
+                screenFrame.src = "incomingcall.html?from=" + encodeURIComponent(remoteId) + "&sessionId=" + encodeURIComponent(sessionId) + "&videoCall=" + videoCall + encodeDisplayParams();
                 break;
         }
 

@@ -236,12 +236,37 @@
     <script>
         const controller = window.top.controller;
         const urlParams = new URLSearchParams(window.location.search);
-        const to = decodeURIComponent(urlParams.get('to'));
+        const to = decodeURIComponent(urlParams.get('to') || '');
+        const sessionId = decodeURIComponent(urlParams.get('sessionId') || '');
+        const sessionName = decodeURIComponent(urlParams.get('sessionName') || '');
+        const contact = decodeURIComponent(urlParams.get('contact') || '');
+        const displayNameParam = decodeURIComponent(urlParams.get('displayName') || '');
+        const channel = new BroadcastChannel('myChannel');
+        const getDisplayName = () => displayNameParam || sessionName || contact || to;
+        const setDisplayName = (value) => {
+            const resolved = value || to;
+            document.querySelector("#name").textContent = resolved;
+            document.querySelector("#initial").textContent = resolved ? resolved.charAt(0).toUpperCase() : '';
+        };
         
-        if(to) {
-            document.querySelector("#name").textContent = to;
-            document.querySelector("#initial").textContent = to.charAt(0).toUpperCase();
+        if (to) {
+            setDisplayName(getDisplayName());
         }
+
+        if (sessionId) {
+            controller.getContactName(sessionId);
+        }
+
+        channel.addEventListener('message', (event) => {
+            try {
+                const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+                if (data && data.contactName) {
+                    setDisplayName(data.contactName);
+                }
+            } catch (error) {
+                console.error("Error parsing message data:", error);
+            }
+        });
         
         document.querySelector(".hang-up-button").addEventListener("click", () => {
             controller.rejectCall(to);
