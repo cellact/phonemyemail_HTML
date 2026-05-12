@@ -209,7 +209,7 @@
                 this.storeRemoteDisplayName(formattedRemoteId, remoteId);
                 const callRequest = {
                     action: "call-remote",
-                    body: { localId: callerLocalId, pid: this.pid, remoteId: formattedRemoteId }
+                    body: { localId: callerLocalId, pid: this.pid, remoteId: remoteId }
                 };
                 this.sendMessageToNativeApp(callRequest);
             }
