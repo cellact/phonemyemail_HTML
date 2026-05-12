@@ -205,8 +205,7 @@
 
             async callRemote(remoteId) {
                 const callerLocalId = await this.getCallerLocalIdForCall();
-                // const formattedRemoteId = await this.formatRemoteIdForCall(remoteId); //we dont do this
-                this.storeRemoteDisplayName(formattedRemoteId, remoteId);
+                this.storeRemoteDisplayName(remoteId, remoteId);
                 const callRequest = {
                     action: "call-remote",
                     body: { localId: callerLocalId, pid: this.pid, remoteId: remoteId }
