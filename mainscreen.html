@@ -244,99 +244,6 @@
             background: transparent;
         }
 
-        /* Add these styles */
-        .calling-overlay {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            right: 16px;
-            background: linear-gradient(135deg, 
-                rgba(115, 66, 160, 0.5) 0%,
-                rgba(54, 52, 163, 0.5) 100%
-            );
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: white;
-            transform: translateY(-150%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .calling-overlay.show {
-            transform: translateY(0);
-        }
-
-        .calling-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-            flex: 1;
-            margin-right: 12px;
-        }
-
-        .calling-spinner {
-            width: 24px;
-            height: 24px;
-            border: 2.5px solid rgba(255, 255, 255, 0.3);
-            border-top: 2.5px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        .calling-text {
-            font-size: 16px;
-            font-weight: 500;
-            letter-spacing: -0.2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        #callingId {
-            font-weight: 600;
-            margin-left: 4px;
-            display: inline-block;
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: bottom;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .cancel-call {
-            flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 12px;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-
-        .cancel-call:active {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(0.96);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         /* Voice Mail Full Screen */
         .voicemail-screen {
             position: fixed;
@@ -660,13 +567,6 @@
         </div>
     </div>
     <div id="chat-container"></div>
-    <div class="calling-overlay" id="callingOverlay">
-        <div class="calling-left">
-            <div class="calling-spinner"></div>
-            <span class="calling-text">Calling <span id="callingId"></span></span>
-        </div>
-        <button class="cancel-call" id="cancelCall">Cancel</button>
-    </div>
 
     <div class="voicemail-prompt" id="voicemailPrompt">
         <div class="voicemail-prompt-header">
@@ -750,7 +650,6 @@
         const domainButtons = document.querySelectorAll(".domain-button");
         const chatContainer = document.getElementById('chat-container');
         const contactsButton = document.querySelector(".contacts-button");
-        const overlay = document.getElementById('callingOverlay');
         const voicemailPrompt = document.getElementById('voicemailPrompt');
         const voicemailPromptClose = document.getElementById('voicemailPromptClose');
         const voicemailPromptRecord = document.getElementById('voicemailPromptRecord');
@@ -788,7 +687,7 @@
             if (input.value === ""){
                 return
             }
-            makeCall(null, input.value, input.value);
+            makeCall(null, input.value);
         });
 
         messageButton.addEventListener("click", function() {
@@ -813,8 +712,7 @@
                 case 'call':
                     makeCall(
                         event.data.body.sessionId || null,
-                        event.data.body.remoteId || event.data.body.sessionName || '',
-                        event.data.body.contact || event.data.body.sessionName || event.data.body.remoteId || ''
+                        event.data.body.remoteId || event.data.body.sessionName || ''
                     );
                     break;
                     
@@ -831,15 +729,12 @@
                     break;
 
                 case 'ringing':
-                    // Close the calling overlay if it's open
-                    overlay.classList.remove('show');
                     break;
                 case 'download-file':
                     downloadFile(event.data.body.messageId, event.data.body.fileId);
                     break;
 
                 case 'hideAttempt':
-                    overlay.classList.remove('show');
                     break;
                 case 'call-failed':
                     handleCallFailed(event.data.body && event.data.body.message);
@@ -924,21 +819,11 @@
             return value;
         }
 
-        function makeCall(sessionIdValue, rawTarget, contactLabel) {
+        function makeCall(sessionIdValue, rawTarget) {
             var dialTarget = resolveDialTarget(rawTarget || '');
             console.log("makeCall: input=" + rawTarget + " resolved=" + dialTarget);
             lastCallAttempt = rawTarget || '';
             closeVoicemailPrompt();
-
-            const callingId = document.getElementById('callingId');
-            console.log("contact: "+contactLabel);
-            callingId.textContent = contactLabel && contactLabel !== '' ? contactLabel : rawTarget;
-            overlay.classList.add('show');
-            
-            document.getElementById('cancelCall').addEventListener('click', () => {
-                controller.rejectCall(sessionIdValue || dialTarget);
-                overlay.classList.remove('show');
-            }, { once: true });
 
             if (sessionIdValue) {
                 controller.callSession(sessionIdValue);
@@ -963,8 +848,6 @@
         }
 
         function handleCallFailed(message) {
-            overlay.classList.remove('show');
-
             if (!canOfferVoicemail(lastCallAttempt)) {
                 return;
             }
